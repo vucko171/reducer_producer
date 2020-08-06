@@ -2,21 +2,45 @@ from tkinter import *
 from tkinter import scrolledtext
 import re
 
-def outAll(Under,Cammel,Reducer,Variable):
+def outAll():
+    Under=UInp.get(1.0,'end-1c').split("\n")
+    Under=[x.lower() for x in Under]
+    Cammel=CInp.get(1.0,'end-1c').split("\n")
+    Cammel=[x[0].upper()+x[1:] if len(x)>0 else "" for x in Cammel]
+    Reducer=RInp.get(1.0,'end-1c').split("\n")[0]
+    Variable=VInp.get(1.0,'end-1c').split("\n")[0]
+    group=int(check.get())
     strInitOut=""
     strReduOut=""
     strActiOut=""
+    strVarOut=""
+    strSetOut=""
+    if group:
+        strReduOut+="      case `"+Reducer+"/SET_"+Under[0].upper()+"`:\n"
+        strActiOut+="export function set"+Cammel[0]+"(data) {\n  return {\n    type: `@servicerequest/SET_"+Under[0].upper()+"`,\n    payload: {\n      data,\n    },\n  };\n}\n"
+        strSetOut+="set"+Cammel[0]+",\n"
     for x in range(len(min(Under,Cammel))):
         if len(Under[x])!=0:
+            if group:
+                strReduOut+="        "+Variable+"."+Under[x].lower()+" = action.payload.data."+Under[x].lower()+";\n"
+            else:
+                strReduOut+="      case `"+Reducer+"/SET_"+Under[x].upper()+"`:\n        "+Variable+"."+Under[x].lower()+" = action.payload.data;\n        break;\n"
+                strActiOut+="export function set"+Cammel[x]+"(data) {\n  return {\n    type: `@servicerequest/SET_"+Under[x].upper()+"`,\n    payload: {\n      data,\n    },\n  };\n}\n"
+                strSetOut+="set"+Cammel[x]+",\n"
             strInitOut+=Under[x].lower()+": '',\n"
-            strReduOut+="      case `"+Reducer+"/SET_"+Under[x].upper()+"`:\n        "+Variable+"."+Under[x].lower()+" = action.payload.data;\n        break;\n"
-            strActiOut+="export function set"+Cammel[x]+"(data) {\n  return {\n    type: `@servicerequest/SET_"+Under[x].upper()+"`,\n    payload: {\n      data,\n    },\n  };\n}\n"
+            strVarOut+=Under[x].lower()+",\n"
+    if group:
+        strReduOut+="        break;\n"
     InitOut.delete(1.0,"end")
     InitOut.insert(1.0,strInitOut)
     ReduOut.delete(1.0,"end")
     ReduOut.insert(1.0,strReduOut)
     ActiOut.delete(1.0,"end")
     ActiOut.insert(1.0,strActiOut)
+    ImpVarOut.delete(1.0,"end")
+    ImpVarOut.insert(1.0,strVarOut)
+    ImpSetOut.delete(1.0,"end")
+    ImpSetOut.insert(1.0,strSetOut)
     UInp.delete(1.0,"end")
     UInp.insert(1.0,"\n".join(Under))
     CInp.delete(1.0,"end")
@@ -36,7 +60,7 @@ def conv2Cammel(data):
 
 def conv2Under(data):
     for x in range(len(data)):
-        temp=re.findall('^([A-Z]?[a-z]*?)(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?(?:([A-Z][a-z]*?))?$',data[x])
+        temp=re.findall('^([A-Z]?[a-z]*?|\d+)(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?(?:([A-Z][a-z]*?|\d+))?$',data[x])
         str=""
         if len(temp)!=0:
             temp=temp[0]
@@ -48,27 +72,28 @@ def conv2Under(data):
     return data
 
 def onUnder(*args):
-    Under=UInp.get(1.0,'end-1c').split("\n")
-    Under=[x.lower() for x in Under]
     Cammel=conv2Cammel(UInp.get(1.0,'end-1c').split("\n"))
     Cammel=[x[0].upper()+x[1:] if len(x)>0 else "" for x in Cammel]
-    Reducer=RInp.get(1.0,'end-1c').split("\n")[0]
-    Variable=VInp.get(1.0,'end-1c').split("\n")[0]
-    outAll(Under,Cammel,Reducer,Variable)
+    CInp.delete(1.0,"end")
+    CInp.insert(1.0,"\n".join(Cammel))
+    outAll()
 
 def onCammel(*args):
-    Cammel=CInp.get(1.0,'end-1c').split("\n")
-    Cammel=[x[0].upper()+x[1:] if len(x)>0 else "" for x in Cammel]
     Under=conv2Under(CInp.get(1.0,'end-1c').split("\n"))
     Under=[x.lower() for x in Under]
-    Reducer=RInp.get(1.0,'end-1c').split("\n")[0]
-    Variable=VInp.get(1.0,'end-1c').split("\n")[0]
-    outAll(Under,Cammel,Reducer,Variable)
+    UInp.delete(1.0,"end")
+    UInp.insert(1.0,"\n".join(Under))
+    outAll()
 
 master = Tk()
 master.resizable(0,0)
-inputFrame = Frame(master, width=600)
-inputFrame.pack(padx=30, pady=30)
+
+
+topFrame = Frame(master, width=600)
+topFrame.pack(padx=30, pady=30)
+
+inputFrame = Frame(topFrame, width=600)
+inputFrame.pack()
 
 
 RLbl = Label(inputFrame, text="Reducer")
@@ -78,7 +103,7 @@ RInp = Text(inputFrame, width=32, height=1)
 RInp.insert(1.0, "@servicerequest")
 RInp.grid(column=0,row=1)
 
-VLbl = Label(inputFrame, text="Variable/Object (leave \"draft\" none)")
+VLbl = Label(inputFrame, text="Variable/Object (leave \"draft\" if none)")
 VLbl.grid(column=2,row=0)
 
 VInp = Text(inputFrame, width=32, height=1)
@@ -105,8 +130,20 @@ CInp.grid(column=2,row=3)
 CInp.bind('<KeyRelease>', onCammel)
 
 
-outFrame = Frame(master, width=600)
-outFrame.pack(padx=30, pady=30)
+checkFrame = Frame(topFrame, width=600)
+checkFrame.pack()
+
+check = IntVar()
+groupCheck = Checkbutton(checkFrame, text='Group variables in one setter',variable=check, onvalue=1, offvalue=0, command=outAll)
+groupCheck.grid(sticky = W,column=0,row=0)
+
+
+
+bottomFrame = Frame(master, width=600)
+bottomFrame.pack(padx=30, pady=30)
+
+outFrame = Frame(bottomFrame, width=600)
+outFrame.pack()
 
 
 InitOutLbl = Label(outFrame, text="Initial value output")
@@ -126,5 +163,26 @@ ActiOutLbl.grid(column=2,row=0)
 
 ActiOut = scrolledtext.ScrolledText(outFrame, width=20, height=6)
 ActiOut.grid(column=2,row=1)
+
+
+extraFrame = Frame(bottomFrame, width=600)
+extraFrame.pack()
+
+
+ImpVarLbl = Label(extraFrame, text="import variables")
+ImpVarLbl.grid(column=0,row=0)
+
+ImpVarOut = scrolledtext.ScrolledText(extraFrame, width=20, height=6)
+ImpVarOut.grid(column=0,row=1)
+
+blankInp2 = Label(inputFrame, text="", width=2)
+blankInp2.grid(column=1,row=0)
+
+ImpSetLbl = Label(extraFrame, text="import setters")
+ImpSetLbl.grid(column=2,row=0)
+
+ImpSetOut = scrolledtext.ScrolledText(extraFrame, width=20, height=6)
+ImpSetOut.grid(column=2,row=1)
+
 
 mainloop()
